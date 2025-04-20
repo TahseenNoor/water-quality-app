@@ -34,7 +34,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.write("Monitor water parameters, analyze pollution levels, and explore different use cases like fish farming, agriculture, or drinking water safety.")
 
 # Load dataset
-df = pd.read_csv("https://raw.githubusercontent.com/your-username/your-repo-name/main/realfishdataset.csv")
+df = pd.read_csv("https://github.com/TahseenNoor/water-quality-app/raw/refs/heads/main/realfishdataset.csv")
 
 
 # Show data
