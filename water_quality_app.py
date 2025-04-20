@@ -85,11 +85,20 @@ turb_val = st.slider("Turbidity (NTU)", 1.0, 40.0, 10.0)
 
 if st.button("Analyze Quality"):
     if model_ready:
+        # Prepare input tensor
         input_tensor = torch.tensor([[ph_val, temp_val, turb_val]], dtype=torch.float32)
+        
         with torch.no_grad():
+            # Get model output
             output = model(input_tensor)
+            
+            # Print out raw output (debugging step)
+            st.write(f"Model output (raw probability): {output.item()}")
+            
+            # Apply threshold of 0.5 to decide prediction
             prediction = int(output.item() > 0.5)
 
+        # Display result
         result = "✅ **Water is Safe**" if prediction == 1 else "⚠️ **Water is Unsafe**"
         st.success(f"💧 Water Quality Result: {result}")
     else:
