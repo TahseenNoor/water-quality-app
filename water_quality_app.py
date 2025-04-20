@@ -86,11 +86,11 @@ turb_val = st.slider("Turbidity (NTU)", 1.0, 40.0, 10.0)
 # === WATER QUALITY THRESHOLDS ===
 def check_water_quality(ph, temp, turb):
     if ph < 6.5 or ph > 8.5:
-        return "unsafe", "pH levels out of range"
+        return "unsafe", "due to pH levels out of range"
     elif temp < 20.0 or temp > 30.0:
-        return "unsafe", "temperature out of range"
+        return "unsafe", "due to temperature out of range"
     elif turb > 30.0:
-        return "unsafe", "high turbidity"
+        return "unsafe", "due to high turbidity"
     return "safe", ""
 
 if st.button("Analyze Quality"):
@@ -109,11 +109,14 @@ if st.button("Analyze Quality"):
         # Check water quality based on parameters
         quality_check, quality_issue = check_water_quality(ph_val, temp_val, turb_val)
 
-        # Now prioritize safety, if either model or parameters indicate unsafe, it's unsafe.
-        if model_prediction == "unsafe" or quality_check == "unsafe":
-            unsafe_reason = quality_issue if quality_check == "unsafe" else "Model prediction indicates unsafe"
-            st.warning(f"💧 Water Quality Result: ⚠️ **Water is Unsafe** due to {unsafe_reason}")
+        # First check: If water is unsafe due to quality parameters
+        if quality_check == "unsafe":
+            st.warning(f"💧 Water Quality Result: ⚠️ **Water is Unsafe** {quality_issue}")
+        elif model_prediction == "unsafe":
+            # If the model predicts unsafe but the parameters are safe
+            st.warning(f"💧 Water Quality Result: ⚠️ **Water is Unsafe** {quality_issue} (Model prediction indicates unsafe)")
         else:
+            # If both the parameters and the model indicate safe water
             st.success("💧 Water Quality Result: ✅ **Water is Safe**")
     else:
         st.error("❌ Model not ready. Please upload a valid `model.pth` file.")
