@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from PIL import Image
 
 # Load image
-image = Image.open("294d91ac-fe0d-47c3-8413-f5d6ce10bdec.png")
+image = Image.open("Screenshot 2025-04-20 231221.png")
 
 # Set page config
 st.set_page_config(page_title="Water Quality Analyzer", page_icon="💧", layout="wide")
