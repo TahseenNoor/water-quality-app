@@ -121,3 +121,54 @@ if st.button("Analyze Quality"):
             st.success(f"💧 Water Quality Result: {result} and {quality_check}")
     else:
         st.error("❌ Model not ready. Please upload a valid `model.pth` file.")
+
+# === ADDITIONAL FEATURES ===
+
+# === USE CASE TOGGLE ===
+st.subheader("🛠️ Select Use Case")
+use_case = st.radio("Choose the purpose for analysis:", ["General Use", "Fish Farming", "Drinking"], horizontal=True)
+
+st.markdown(f"🧭 **Current Mode:** `{use_case}`")
+
+# === CUSTOM LABEL BASED ON USE CASE ===
+if use_case == "Fish Farming":
+    st.info("🐟 Fish farming requires stable pH (6.5-8.5), moderate turbidity, and temperature around 25-30°C.")
+elif use_case == "Drinking":
+    st.info("🚰 Drinking water should have pH 6.5-8.5, low turbidity (<5 NTU), and safe temperature range.")
+else:
+    st.info("🌱 General use considers flexible thresholds, based on irrigation or industry.")
+
+# === MAP INPUT (Optional) ===
+st.subheader("📍 Optional: Add Location")
+location = st.map()
+st.caption("Location data is just for visualization and not used in prediction yet.")
+
+# === BATCH CSV UPLOAD ===
+st.subheader("📦 Upload CSV for Batch Prediction")
+uploaded_file = st.file_uploader("Upload a CSV file with columns: `ph`, `temperature`, `turbidity`", type=["csv"])
+
+if uploaded_file is not None:
+    try:
+        batch_df = pd.read_csv(uploaded_file)
+        required_cols = {'ph', 'temperature', 'turbidity'}
+
+        if not required_cols.issubset(set(batch_df.columns)):
+            st.error("❌ Uploaded CSV must contain `ph`, `temperature`, and `turbidity` columns.")
+        else:
+            st.success("✅ File uploaded successfully. Preview below:")
+            st.dataframe(batch_df.head())
+
+            if model_ready:
+                inputs = torch.tensor(batch_df[["ph", "temperature", "turbidity"]].values, dtype=torch.float32)
+                with torch.no_grad():
+                    outputs = model(inputs).squeeze().numpy()
+                    predictions = (outputs > 0.5).astype(int)
+
+                batch_df["Prediction"] = ["Safe" if p == 1 else "Unsafe" for p in predictions]
+                st.subheader("🔎 Batch Prediction Results")
+                st.dataframe(batch_df)
+            else:
+                st.warning("⚠️ Model not ready. Please ensure `model.pth` is available.")
+
+    except Exception as e:
+        st.error(f"❌ Failed to process the file. Error: {e}")
