@@ -11,9 +11,6 @@ st.set_page_config(page_title="Water Quality Analyzer", page_icon="💧", layout
 # === STYLES ===
 st.markdown("""
     <style>
-        body {
-            background-color: #f1f8ff;
-        }
         .title {
             display: flex;
             align-items: center;
@@ -28,10 +25,18 @@ st.image("Screenshot 2025-04-20 231221.png", width=60)
 st.markdown("## Water Quality Analyzer")
 st.markdown('</div>', unsafe_allow_html=True)
 
-st.write("Monitor water parameters, analyze pollution levels, and explore different use cases like fish farming, agriculture, or drinking water safety.")
+st.markdown("""
+This tool evaluates water suitability for various purposes like aquaculture, drinking, and irrigation.
+Built using **ETDFNN (Enhanced Tuned Deep Fuzzy Neural Network)** and **Fuzzy Logic**, this model achieves up to **100% training accuracy**.
+Upload or input parameters such as pH, temperature, and turbidity to determine water quality.
+""")
 
 # === LOAD DATA ===
 df = pd.read_csv("https://github.com/TahseenNoor/water-quality-app/raw/refs/heads/main/realfishdataset.csv")
+
+# Drop the 'fish' column for generalization
+if 'fish' in df.columns:
+    df = df.drop(columns=['fish'])
 
 # === DISPLAY DATA ===
 st.subheader("📊 Water Sample Data")
@@ -73,10 +78,10 @@ except Exception as e:
     st.text(f"Error: {str(e)}")
 
 # === USER INPUT FOR PREDICTION ===
-st.subheader("🔍 Check Water Suitability")
+st.subheader("🔍 Analyze Water Quality")
 ph_val = st.slider("pH", 5.0, 9.0, 7.0)
 temp_val = st.slider("Temperature (°C)", 20.0, 35.0, 27.0)
-turb_val = st.slider("Turbidity (NTU)", 1.0, 10.0, 5.0)
+turb_val = st.slider("Turbidity (NTU)", 1.0, 40.0, 10.0)
 
 if st.button("Analyze Quality"):
     if model_ready:
@@ -85,7 +90,7 @@ if st.button("Analyze Quality"):
             output = model(input_tensor)
             prediction = int(output.item() > 0.5)
 
-        result = "✅ **Suitable for Aquaculture**" if prediction == 1 else "⚠️ **Not Recommended for Fish Farming**"
-        st.success(f"💡 Water Quality Status: {result}")
+        result = "✅ **Water is Safe**" if prediction == 1 else "⚠️ **Water is Unsafe**"
+        st.success(f"💧 Water Quality Result: {result}")
     else:
         st.error("❌ Model not ready. Please upload a valid `model.pth` file.")
