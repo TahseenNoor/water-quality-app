@@ -4,6 +4,39 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from PIL import Image
+from pathlib import Path
+import base64
+
+# === BACKGROUND SETUP ===
+def set_background():
+    file_path = Path(__file__).parent / "9fd7fb24-e5bb-49cf-958e-f173634aedad.jpg"
+    if file_path.exists():
+        encoded_image = file_path.read_bytes()
+        encoded = base64.b64encode(encoded_image).decode()
+        css = f"""
+        <style>
+        .stApp {{
+            background: url("data:image/jpg;base64,{encoded}");
+            background-size: cover;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            background-position: center;
+        }}
+        .stApp::before {{
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 100%;
+            background: rgba(197, 162, 132, 0.4); /* pastel brown overlay */
+            z-index: -1;
+        }}
+        </style>
+        """
+        st.markdown(css, unsafe_allow_html=True)
+
+set_background()
 
 # === PAGE SETUP ===
 st.set_page_config(page_title="Water Quality Analyzer", page_icon="💧", layout="wide")
@@ -121,54 +154,3 @@ if st.button("Analyze Quality"):
             st.success(f"💧 Water Quality Result: {result} and {quality_check}")
     else:
         st.error("❌ Model not ready. Please upload a valid `model.pth` file.")
-
-# === ADDITIONAL FEATURES ===
-
-# === USE CASE TOGGLE ===
-st.subheader("🛠️ Select Use Case")
-use_case = st.radio("Choose the purpose for analysis:", ["General Use", "Fish Farming", "Drinking"], horizontal=True)
-
-st.markdown(f"🧭 **Current Mode:** `{use_case}`")
-
-# === CUSTOM LABEL BASED ON USE CASE ===
-if use_case == "Fish Farming":
-    st.info("🐟 Fish farming requires stable pH (6.5-8.5), moderate turbidity, and temperature around 25-30°C.")
-elif use_case == "Drinking":
-    st.info("🚰 Drinking water should have pH 6.5-8.5, low turbidity (<5 NTU), and safe temperature range.")
-else:
-    st.info("🌱 General use considers flexible thresholds, based on irrigation or industry.")
-
-# === MAP INPUT (Optional) ===
-st.subheader("📍 Optional: Add Location")
-location = st.map()
-st.caption("Location data is just for visualization and not used in prediction yet.")
-
-# === BATCH CSV UPLOAD ===
-st.subheader("📦 Upload CSV for Batch Prediction")
-uploaded_file = st.file_uploader("Upload a CSV file with columns: `ph`, `temperature`, `turbidity`", type=["csv"])
-
-if uploaded_file is not None:
-    try:
-        batch_df = pd.read_csv(uploaded_file)
-        required_cols = {'ph', 'temperature', 'turbidity'}
-
-        if not required_cols.issubset(set(batch_df.columns)):
-            st.error("❌ Uploaded CSV must contain `ph`, `temperature`, and `turbidity` columns.")
-        else:
-            st.success("✅ File uploaded successfully. Preview below:")
-            st.dataframe(batch_df.head())
-
-            if model_ready:
-                inputs = torch.tensor(batch_df[["ph", "temperature", "turbidity"]].values, dtype=torch.float32)
-                with torch.no_grad():
-                    outputs = model(inputs).squeeze().numpy()
-                    predictions = (outputs > 0.5).astype(int)
-
-                batch_df["Prediction"] = ["Safe" if p == 1 else "Unsafe" for p in predictions]
-                st.subheader("🔎 Batch Prediction Results")
-                st.dataframe(batch_df)
-            else:
-                st.warning("⚠️ Model not ready. Please ensure `model.pth` is available.")
-
-    except Exception as e:
-        st.error(f"❌ Failed to process the file. Error: {e}")
