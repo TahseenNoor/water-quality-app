@@ -83,6 +83,18 @@ ph_val = st.slider("pH", 5.0, 9.0, 7.0)
 temp_val = st.slider("Temperature (°C)", 20.0, 35.0, 27.0)
 turb_val = st.slider("Turbidity (NTU)", 1.0, 40.0, 10.0)
 
+# === WATER QUALITY THRESHOLDS ===
+def check_water_quality(ph, temp, turb):
+    # Define safe and unsafe thresholds based on general guidelines
+    if ph < 6.5 or ph > 8.5:
+        return "⚠️ **Water is Unsafe** due to pH levels"
+    elif temp < 20.0 or temp > 30.0:
+        return "⚠️ **Water is Unsafe** due to temperature"
+    elif turb > 30.0:
+        return "⚠️ **Water is Unsafe** due to turbidity"
+    
+    return "✅ **Water is Safe** based on quality parameters"
+
 if st.button("Analyze Quality"):
     if model_ready:
         # Prepare input tensor
@@ -91,15 +103,21 @@ if st.button("Analyze Quality"):
         with torch.no_grad():
             # Get model output
             output = model(input_tensor)
-            
-            # Print out raw output (debugging step)
             st.write(f"Model output (raw probability): {output.item()}")
             
             # Apply threshold of 0.5 to decide prediction
             prediction = int(output.item() > 0.5)
 
-        # Display result
+        # Combine model result with quality parameter checks
         result = "✅ **Water is Safe**" if prediction == 1 else "⚠️ **Water is Unsafe**"
-        st.success(f"💧 Water Quality Result: {result}")
+        
+        # Check based on predefined thresholds
+        quality_check = check_water_quality(ph_val, temp_val, turb_val)
+        
+        # Final result
+        if "Unsafe" in quality_check:
+            st.warning(f"💧 Water Quality Result: {quality_check}")
+        else:
+            st.success(f"💧 Water Quality Result: {result} and {quality_check}")
     else:
         st.error("❌ Model not ready. Please upload a valid `model.pth` file.")
