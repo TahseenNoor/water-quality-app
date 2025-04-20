@@ -85,15 +85,13 @@ turb_val = st.slider("Turbidity (NTU)", 1.0, 40.0, 10.0)
 
 # === WATER QUALITY THRESHOLDS ===
 def check_water_quality(ph, temp, turb):
-    # Define safe and unsafe thresholds based on general guidelines
     if ph < 6.5 or ph > 8.5:
-        return "⚠️ **Water is Unsafe** due to pH levels"
+        return "unsafe", "pH levels out of range"
     elif temp < 20.0 or temp > 30.0:
-        return "⚠️ **Water is Unsafe** due to temperature"
+        return "unsafe", "temperature out of range"
     elif turb > 30.0:
-        return "⚠️ **Water is Unsafe** due to turbidity"
-    
-    return "✅ **Water is Safe** based on quality parameters"
+        return "unsafe", "high turbidity"
+    return "safe", ""
 
 if st.button("Analyze Quality"):
     if model_ready:
@@ -106,18 +104,16 @@ if st.button("Analyze Quality"):
             st.write(f"Model output (raw probability): {output.item()}")
             
             # Apply threshold of 0.5 to decide prediction
-            prediction = int(output.item() > 0.5)
+            model_prediction = "safe" if output.item() > 0.5 else "unsafe"
 
-        # Combine model result with quality parameter checks
-        result = "✅ **Water is Safe**" if prediction == 1 else "⚠️ **Water is Unsafe**"
-        
-        # Check based on predefined thresholds
-        quality_check = check_water_quality(ph_val, temp_val, turb_val)
-        
-        # Final result
-        if "Unsafe" in quality_check:
-            st.warning(f"💧 Water Quality Result: {quality_check}")
+        # Check water quality based on parameters
+        quality_check, quality_issue = check_water_quality(ph_val, temp_val, turb_val)
+
+        # Now prioritize safety, if either model or parameters indicate unsafe, it's unsafe.
+        if model_prediction == "unsafe" or quality_check == "unsafe":
+            unsafe_reason = quality_issue if quality_check == "unsafe" else "Model prediction indicates unsafe"
+            st.warning(f"💧 Water Quality Result: ⚠️ **Water is Unsafe** due to {unsafe_reason}")
         else:
-            st.success(f"💧 Water Quality Result: {result} and {quality_check}")
+            st.success("💧 Water Quality Result: ✅ **Water is Safe**")
     else:
         st.error("❌ Model not ready. Please upload a valid `model.pth` file.")
