@@ -2,155 +2,84 @@ import streamlit as st
 import pandas as pd
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from PIL import Image
-from pathlib import Path
-import base64
+import numpy as np
 
-# === BACKGROUND SETUP ===
-def set_background():
-    file_path = Path(__file__).parent / "9fd7fb24-e5bb-49cf-958e-f173634aedad.jpg"
-    if file_path.exists():
-        encoded_image = file_path.read_bytes()
-        encoded = base64.b64encode(encoded_image).decode()
-        css = f"""
-        <style>
-        .stApp {{
-            background: url("data:image/jpg;base64,{encoded}");
-            background-size: cover;
-            background-attachment: fixed;
-            background-repeat: no-repeat;
-            background-position: center;
-        }}
-        .stApp::before {{
-            content: "";
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100%;
-            width: 100%;
-            background: rgba(197, 162, 132, 0.4); /* pastel brown overlay */
-            z-index: -1;
-        }}
-        </style>
-        """
-        st.markdown(css, unsafe_allow_html=True)
+# ---------- App Styling ----------
+st.set_page_config(layout="wide")
 
-set_background()
+page_bg_color = """
+<style>
+[data-testid="stAppViewContainer"] {
+    background-color: #F4F9F9;
+}
+</style>
+"""
+st.markdown(page_bg_color, unsafe_allow_html=True)
 
-# === PAGE SETUP ===
-st.set_page_config(page_title="Water Quality Analyzer", page_icon="💧", layout="wide")
+# ---------- Title & Header ----------
+col1, col2 = st.columns([0.1, 0.9])
+with col1:
+    st.image("https://github.com/TahseenNoor/water-quality-app/raw/main/Screenshot%202025-04-20%20231221.png", width=60)
+with col2:
+    st.markdown("<h1 style='color:#0077b6;'>FlowPredict: Real-Time Water Quality Prediction</h1>", unsafe_allow_html=True)
 
-# === STYLES ===
-st.markdown("""
-    <style>
-        .title {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-    </style>
-""", unsafe_allow_html=True)
+st.markdown("Predict water quality for multiple use cases like pollution monitoring, fish farming, and more.")
 
-# === HEADER ===
-st.markdown('<div class="title">', unsafe_allow_html=True)
-st.image("Screenshot 2025-04-20 231221.png", width=60)
-st.markdown("## Water Quality Analyzer")
-st.markdown('</div>', unsafe_allow_html=True)
+# ---------- Sidebar ----------
+with st.sidebar:
+    st.title("Select Use Case")
+    use_case = st.radio("Choose a mode:", ["General Quality Monitoring", "Fish Farming", "Drinking Water"])
 
-st.markdown("""
-This tool evaluates water suitability for various purposes like aquaculture, drinking, and irrigation.
-Built using **ETDFNN (Enhanced Tuned Deep Fuzzy Neural Network)** and **Fuzzy Logic**, this model achieves up to **100% training accuracy**.
-Upload or input parameters such as pH, temperature, and turbidity to determine water quality.
-""")
+# ---------- Sample Map ----------
+st.subheader("Location-based Sampling (Demo Map)")
+map_data = pd.DataFrame({
+    'lat': np.random.uniform(12.90, 12.95, 10),
+    'lon': np.random.uniform(77.50, 77.55, 10)
+})
+st.map(map_data)
 
-# === LOAD DATA ===
-df = pd.read_csv("https://github.com/TahseenNoor/water-quality-app/raw/refs/heads/main/realfishdataset.csv")
-
-# Drop the 'fish' column for generalization
-if 'fish' in df.columns:
-    df = df.drop(columns=['fish'])
-
-# === DISPLAY DATA ===
-st.subheader("📊 Water Sample Data")
-st.dataframe(df)
-
-# === CHARTS ===
-st.subheader("📈 Water Quality Parameter Trends")
-st.bar_chart(df[["ph", "temperature", "turbidity"]])
-
-# === MODEL ARCHITECTURE ===
-class ETDFNNBinary(nn.Module):
-    def __init__(self, input_size, hidden_size):
-        super(ETDFNNBinary, self).__init__()
-        self.fc1 = nn.Linear(input_size, hidden_size)
-        self.bn1 = nn.BatchNorm1d(hidden_size)
-        self.dropout = nn.Dropout(0.3)
-        self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.output = nn.Linear(hidden_size, 1)  # Binary output
+# ---------- Model Loading ----------
+class SimpleNN(nn.Module):
+    def __init__(self):
+        super(SimpleNN, self).__init__()
+        self.fc1 = nn.Linear(3, 16)
+        self.fc2 = nn.Linear(16, 8)
+        self.fc3 = nn.Linear(8, 2)
 
     def forward(self, x):
-        x = torch.tanh(self.bn1(self.fc1(x)))
-        x = self.dropout(x)
-        x = F.relu(self.fc2(x))
-        return torch.sigmoid(self.output(x))  # sigmoid for binary output
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)
 
-# === LOAD MODEL ===
-model = ETDFNNBinary(input_size=3, hidden_size=64)
-model_path = "model.pth"
-
-model_ready = False
+model = SimpleNN()
 try:
-    model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+    model.load_state_dict(torch.load("model.pth", map_location=torch.device('cpu')))
     model.eval()
     model_ready = True
-except FileNotFoundError:
-    st.warning("⚠️ model.pth not found. Please make sure it's in the same folder.")
 except Exception as e:
-    st.error("❌ Failed to load model.")
-    st.text(f"Error: {str(e)}")
+    st.error("Error loading model. Please ensure 'model.pth' is present.")
+    model_ready = False
 
-# === USER INPUT FOR PREDICTION ===
-st.subheader("🔍 Analyze Water Quality")
-ph_val = st.slider("pH", 5.0, 9.0, 7.0)
-temp_val = st.slider("Temperature (°C)", 20.0, 35.0, 27.0)
-turb_val = st.slider("Turbidity (NTU)", 1.0, 40.0, 10.0)
+# ---------- Water Quality Analysis ----------
+st.subheader("Water Quality Analyzer")
 
-# === WATER QUALITY THRESHOLDS ===
+ph_val = st.slider("pH Level", 0.0, 14.0, 7.0)
+temp_val = st.slider("Temperature (°C)", 0.0, 40.0, 25.0)
+turb_val = st.slider("Turbidity (NTU)", 0.0, 100.0, 5.0)
+
 def check_water_quality(ph, temp, turb):
-    # Define safe and unsafe thresholds based on general guidelines
-    if ph < 6.5 or ph > 8.5:
-        return "⚠️ **Water is Unsafe** due to pH levels"
-    elif temp < 20.0 or temp > 30.0:
-        return "⚠️ **Water is Unsafe** due to temperature"
-    elif turb > 30.0:
-        return "⚠️ **Water is Unsafe** due to turbidity"
-    
-    return "✅ **Water is Safe** based on quality parameters"
+    if not model_ready:
+        return "Model not available"
+    input_tensor = torch.tensor([[ph, temp, turb]], dtype=torch.float32)
+    with torch.no_grad():
+        output = model(input_tensor)
+    predicted_class = torch.argmax(output, dim=1).item()
+    return "Good Quality ✅" if predicted_class == 1 else "Poor Quality ❌"
 
 if st.button("Analyze Quality"):
-    if model_ready:
-        # Prepare input tensor
-        input_tensor = torch.tensor([[ph_val, temp_val, turb_val]], dtype=torch.float32)
-        
-        with torch.no_grad():
-            # Get model output
-            output = model(input_tensor)
-            st.write(f"Model output (raw probability): {output.item()}")
-            
-            # Apply threshold of 0.5 to decide prediction
-            prediction = int(output.item() > 0.5)
+    result = check_water_quality(ph_val, temp_val, turb_val)
+    st.success(f"Water Quality Status: {result}")
 
-        # Combine model result with quality parameter checks
-        result = "✅ **Water is Safe**" if prediction == 1 else "⚠️ **Water is Unsafe**"
-        
-        # Check based on predefined thresholds
-        quality_check = check_water_quality(ph_val, temp_val, turb_val)
-        
-        # Final result
-        if "Unsafe" in quality_check:
-            st.warning(f"💧 Water Quality Result: {quality_check}")
-        else:
-            st.success(f"💧 Water Quality Result: {result} and {quality_check}")
-    else:
-        st.error("❌ Model not ready. Please upload a valid `model.pth` file.")
+# ---------- Footer ----------
+st.markdown("---")
+st.markdown("🔬 Built with ❤️ using Streamlit | Powered by AI & Data Science")
