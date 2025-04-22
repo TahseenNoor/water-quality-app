@@ -32,3 +32,4 @@ Data is fetched directly from a CSV file hosted on GitHub:
    ```bash
    git clone https://github.com/TahseenNoor/water-quality-app.git
    cd water-quality-app
+[Click here to view the project on GitHub](https://github.com/TahseenNoor/water-quality-app)
